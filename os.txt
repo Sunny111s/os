@@ -1,0 +1,2813 @@
+SLIP 1
+Q 1)Implement the C Program to create a child process using fork(), display parent 
+and child process id. Child process will display the message “I am Child Process” and
+the parent process should display “I am Parent Process”.
+// PROGRAM
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<sys/types.h>
+int main() {
+int pid = fork();
+if(pid > 0)
+{
+printf("I am a parent process\n");
+printf("Parent Process ID: %d \n\n",getpid());
+}
+else if (pid == 0)
+{
+printf("I am a child process \n");
+printf("Child Process ID: %d \n\n",getpid());;
+}
+else 
+{
+printf("Process creation failed...\n");
+exit(0);
+}
+return 0;
+}
+// OUTPUT 
+I am a parent process
+Parent Process ID: 20965 
+I am a child process 
+Child Process ID: 20966 
+Q 2)
+Write a C program that behaves like a shell which displays the command prompt
+‘myshell$’. It accepts the command, tokenize the command line and execute it by 
+creating
+the child process. Also implement the additional command ‘list’ as
+myshell$ list f dirname: It will display filenames in a given directory.
+myshell$ list n dirname: It will count the number of entries in a given directory.
+myshell$ list i dirname: It will display filenames and their inode number for the files 
+in a given directory.
+// PROGRAM
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+void make_toks(char *s, char *tok[]) {
+ int i = 0;
+ char *p;
+ p = strtok(s, " ");
+ while (p != NULL) {
+ tok[i++] = p;
+ p = strtok(NULL, " ");
+ }
+ tok[i] = NULL;
+}
+void count(char *fn, char op) {
+ int fh, cc = 0, wc = 0, lc = 0;
+ char c;
+ fh = open(fn, O_RDONLY); // Fixed the open flag
+ if (fh == -1) {
+ printf("File %s is not found.\n", fn);
+ return;
+ }
+ while (read(fh, &c, 1) > 0) { // Read one character at a time
+ if (c == ' ')
+ wc++;
+ else if (c == '\n') {
+ wc++;
+ lc++;
+ }
+ cc++;
+ }
+ close(fh);
+ switch (op) {
+ case 'c':
+ printf("No. of characters: %d\n", cc);
+ break;
+ case 'w':
+ printf("No. of words: %d\n", wc);
+ break;
+ case 'l':
+ printf("No. of lines: %d\n", lc + 1);
+ break;
+ }
+}
+int main() {
+ char buff[80], *args[10];
+ int pid;
+ while (1) {
+ printf("myshell$: ");
+ fflush(stdin);
+ fgets(buff, sizeof(buff), stdin);
+ buff[strlen(buff) - 1] = '\0';
+ make_toks(buff, args);
+ if (strcmp(args[0], "count") == 0)
+ count(args[2], args[1][0]);
+ else {
+ pid = fork();
+ if (pid > 0)
+ wait(NULL);
+ else {
+ if (execvp(args[0], args) == -1)
+ printf("Bad command.\n");
+ }
+ }
+ }
+ return 0;
+}
+// OUTPUT
+myshell$: ls
+ a.out child.c procsort.c sjf1.c
+ ch.c fcfs.c shell1.c sjf.c
+ child2.c lifo.c shell.c 'TY_Lab-I CS-357 OS slip (Rev 2021-22).pdf'
+NOTE: output may vary based on the files present on your system just do the ls 
+command and get it checked by the examine
+SLIP 2 
+Q 1)
+Write a C program to illustrate the concept of orphan process. Parent process creates 
+a child and terminates before child has finished its task. So child process becomes 
+orphan process. (Use fork(), sleep(), getpid(), getppid()).
+// PROGRAM
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+int main() {
+ pid_t child_pid = fork();
+ if (child_pid < 0) {
+ perror("Fork failed");
+ return 1;
+ }
+ if (child_pid == 0) {
+ // Child process
+ printf("Child process: My PID is %d\n", getpid());
+ printf("Child process: My parent's PID is %d\n", getppid());
+ printf("Child process: Sleeping for 5 seconds...\n");
+ sleep(5); // Simulate some work being done by the child
+ printf("Child process: Exiting\n");
+ } else {
+ // Parent process
+ printf("Parent process: My PID is %d\n", getpid());
+ printf("Parent process: My child's PID is %d\n", child_pid);
+ printf("Parent process: Exiting\n");
+ }
+ return 0;
+}
+// OUTPUT 
+Parent process: My PID is 21089
+Parent process: My child's PID is 21090
+Parent process: Exiting
+Child process: My PID is 21090
+Child process: My parent's PID is 21089
+Child process: Sleeping for 5 seconds...
+Q 2)
+Write a program to simulate FCFS CPU-scheduling. The arrival time and first CPUburst for different n number of processes should be input to the algorithm. Assume 
+that the
+fixed IO waiting time (2 units). The next CPU-burst should be generated randomly. 
+The
+output should give Gantt chart, turnaround time and waiting time for each process. 
+Also find
+the average waiting time and turnaround time.
+// PROGRAM
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<sys/types.h>
+typedef struct process_info
+{
+ char pname[20];
+ int at,bt,ct,bt1;
+ struct process_info *next;
+}NODE;
+int n;
+NODE *first,*last;
+void accept_info()
+{
+ NODE *p;
+ int i;
+ printf("Enter no.of process:");
+ scanf("%d",&n);
+ for(i=0;i<n;i++)
+ {
+ p = (NODE*)malloc(sizeof(NODE));
+ printf("Enter process name:");
+ scanf("%s",p->pname);
+ printf("Enter arrival time:");
+ scanf("%d",&p->at);
+ printf("Enter first CPU burst time:");
+ scanf("%d",&p->bt);
+ p->bt1 = p->bt;
+ 
+ p->next = NULL;
+ if(first==NULL)
+ first=p;
+ else
+ last->next=p;
+ last = p;
+ }
+}
+void print_output()
+{
+ NODE *p;
+ float avg_tat=0,avg_wt=0;
+ printf("pname\tat\tbt\tct\ttat\twt\n");
+ p = first;
+ while(p!=NULL)
+ {
+ int tat = p->ct-p->at;
+ int wt = tat-p->bt;
+ 
+ avg_tat+=tat;
+ avg_wt+=wt;
+ printf("%s\t%d\t%d\t%d\t%d\t%d\n",
+ p->pname,p->at,p->bt,p->ct,tat,wt);
+ 
+ p=p->next;
+ }
+ printf("Avg TAT=%f\tAvg WT=%f\n",
+ avg_tat/n,avg_wt/n);
+}
+void print_input()
+{
+ NODE *p;
+ p = first;
+ printf("pname\tat\tbt\n");
+ while(p!=NULL)
+ {
+ printf("%s\t%d\t%d\n",
+ p->pname,p->at,p->bt1);
+ p = p->next;
+ }
+}
+void sort()
+{
+ NODE *p,*q;
+ int t;
+ char name[20];
+ p = first;
+ while(p->next!=NULL)
+ {
+ q=p->next;
+ while(q!=NULL)
+ {
+ if(p->at > q->at)
+ {
+ strcpy(name,p->pname);
+ strcpy(p->pname,q->pname);
+ strcpy(q->pname,name);
+ t = p->at;
+ p->at = q->at;
+ q->at = t;
+ 
+ t = p->bt;
+ p->bt = q->bt;
+ q->bt = t;
+ t = p->ct;
+ p->ct = q->ct;
+ q->ct = t;
+ t = p->bt1;
+ p->bt1 = q->bt1;
+ q->bt1 = t;
+ }
+ q=q->next;
+ }
+ p=p->next;
+ }
+}
+int time;
+NODE * get_fcfs()
+{
+ NODE *p;
+ p = first;
+ while(p!=NULL)
+ {
+ if(p->at<=time && p->bt1!=0)
+ return p;
+ p=p->next;
+ }
+ return NULL;
+}
+struct gantt_chart
+{
+ int start;
+ char pname[30];
+ int end;
+}s[100],s1[100];
+int k;
+void fcfs()
+{
+ int prev=0,n1=0;
+ NODE *p;
+ while(n1!=n)
+ {
+ p = get_fcfs();
+ if(p==NULL)
+ {
+ time++;
+ s[k].start = prev;
+ strcpy(s[k].pname,"*");
+ s[k].end = time;
+ prev = time;
+ k++;
+ }
+ else
+ {
+ time+=p->bt1;
+ s[k].start = prev;
+ strcpy(s[k].pname, p->pname);
+ s[k].end = time;
+ prev = time;
+ k++;
+ p->ct = time;
+ p->bt1 = 0;
+ n1++;
+ }
+ print_input(); 
+ sort();
+ }
+}
+void print_gantt_chart()
+{
+ int i,j,m;
+ s1[0] = s[0];
+ for(i=1,j=0;i<k;i++)
+ {
+ if(strcmp(s[i].pname,s1[j].pname)==0)
+ s1[j].end = s[i].end;
+ else
+ s1[++j] = s[i];
+ }
+ printf("%d",s1[0].start);
+ for(i=0;i<=j;i++)
+ {
+ m = (s1[i].end - s1[i].start);
+ for(k=0;k<m/2;k++)
+ printf("-");
+ printf("%s",s1[i].pname);
+ for(k=0;k<(m+1)/2;k++)
+ printf("-");
+ printf("%d",s1[i].end);
+ }
+}
+int main()
+{
+ accept_info();
+ sort();
+ fcfs();
+ print_output();
+ print_gantt_chart();
+ return 0;
+}
+//OUTPUT
+Enter no.of process:3
+Enter process name:1
+Enter arrival time:0
+Enter first CPU burst time:2
+Enter process name:2
+Enter arrival time:5
+Enter first CPU burst time:3
+Enter process name:3
+Enter arrival time:2
+Enter first CPU burst time:6
+pname at bt
+1 0 0
+3 2 6
+2 5 3
+pname at bt
+1 0 0
+3 2 0
+2 5 3
+pname at bt
+1 0 0
+3 2 0
+2 5 0
+pname at bt ct tat wt
+1 0 2 2 2 0
+3 2 6 8 6 0
+2 5 3 11 6 3
+Avg TAT=4.666667 Avg WT=1.000000
+0-1-2---3---8-2--11
+SLIP 3
+Q 1)
+Implement the C program to accept n integers to be sorted. Main function creates
+child process using fork system call. Parent process sorts the integers using bubble 
+sort and waits for child process using wait system call.
+// PROGRAM
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<sys/types.h>
+#include<unistd.h>
+void bubbleSort(int arr[], int n) {
+ for (int i = 0; i < n - 1; i++) {
+ for (int j = 0; j < n - i - 1; j++) {
+ if (arr[j] > arr[j + 1]) {
+ int temp = arr[j];
+ arr[j] = arr[j + 1];
+ arr[j + 1] = temp;
+ }
+ }
+ }
+}
+void fork1()
+{
+int n;
+printf("Enter the number of values: \n");
+scanf("%d", &n);
+int arr[n];
+printf("Enter %d integers:\n", n);
+for(int i=0; i<n; i++)
+{
+scanf("%d", &arr[i]);
+}
+int pid = fork();
+if(pid == 0)
+{
+sleep(5);
+printf("Child process created\n");
+printf("Child process ID: %d \n", getpid());
+}
+else
+{
+printf("\nParent process \n");
+printf("Parent process ID: %d\n",getpid());
+bubbleSort(arr, n);
+printf("Sorted elements: \n");
+for(int i=0; i<n; i++)
+{
+printf("%d \n", arr[i]);
+}
+printf("\n");
+}
+}
+int main()
+{
+fork1();
+return 0;
+}
+// OUTPUT 
+Enter the number of values: 
+3
+Enter 3 integers:
+10 5 30
+Parent process 
+Parent process ID: 21321
+Sorted elements: 
+5 
+10 
+30 
+Q 2)
+Write a C program that behaves like a shell which displays the command prompt
+‘myshell$’. It accepts the command, tokenize the command line and execute it by 
+creating the child process. Also implement the additional command ‘list’ as
+myshell$ list f dirname: It will display filenames in a given directory.
+myshell$ list n dirname: It will count the number of entries in a given directory.
+myshell$ list i dirname: It will display filenames and their inode number for the files 
+in a given directory.
+// PROGRAM
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#define MAX_COMMAND_LENGTH 100
+#define MAX_PATH_LENGTH 256
+#define MAX_ARGS 10
+void listFiles(char *dirname, char mode) {
+ DIR *dir;
+ struct dirent *entry;
+ struct stat fileStat;
+ if ((dir = opendir(dirname)) == NULL) {
+ perror("opendir");
+ return;
+ }
+ while ((entry = readdir(dir)) != NULL) {
+ if (entry->d_name[0] != '.') {
+ char path[MAX_PATH_LENGTH];
+ strcpy(path, dirname);
+ strcat(path, "/");
+ strcat(path, entry->d_name);
+ stat(path, &fileStat);
+ switch (mode) {
+ case 'f':
+ printf("%s\n", entry->d_name);
+ break;
+ case 'n':
+ // Count entries
+ break;
+ case 'i':
+ printf("%s - Inode: %lu\n", entry->d_name, fileStat.st_ino);
+ break;
+ default:
+ printf("Invalid mode.\n");
+ break;
+ }
+ }
+ }
+ closedir(dir);
+}
+int main() {
+ char command[MAX_COMMAND_LENGTH];
+ char *args[MAX_ARGS];
+ int numArgs;
+ while (1) {
+ printf("myshell$ ");
+ fgets(command, sizeof(command), stdin);
+ command[strlen(command) - 1] = '\0'; // Remove newline character
+ // Tokenize the command
+ char *token = strtok(command, " ");
+ numArgs = 0;
+ while (token != NULL) {
+ args[numArgs] = token;
+ numArgs++;
+ token = strtok(NULL, " ");
+ }
+ args[numArgs] = NULL; // Set the last element to NULL
+ if (strcmp(args[0], "list") == 0) {
+ if (numArgs >= 3) {
+ char mode = args[1][0];
+ char *dirname = args[2];
+ listFiles(dirname, mode);
+ } else {
+ printf("Usage: list [f|n|i] dirname\n");
+ }
+ } else {
+ pid_t pid = fork();
+ if (pid == 0) {
+ // Child process
+ execvp(args[0], args);
+ perror("execvp");
+ exit(1);
+ } else if (pid > 0) {
+ // Parent process
+ wait(NULL);
+ } else {
+ perror("fork");
+ }
+ }
+ }
+ return 0;
+}
+// OUTPUT 
+myshell$ ls
+ a.out child.c procsort.c sjf1.c
+ ch.c fcfs.c shell1.c sjf.c
+ child2.c lifo.c shell.c 'TY_Lab-I CS-357 OS slip (Rev 2021-22).pdf'
+NOTE: output may vary based on the files present on your system just do the ls 
+command and get it checked by the examine
+SLIP 4
+Q 1)
+Implement the C program to accept n integers to be sorted. Main function creates
+child process using fork system call. Child process sorts the integers using bubble 
+sort and
+waits for Parent process using wait system call.
+// PROGRAM 
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<sys/types.h>
+#include<unistd.h>
+void bubbleSort(int arr[], int n) {
+ for (int i = 0; i < n - 1; i++) {
+ for (int j = 0; j < n - i - 1; j++) {
+ if (arr[j] > arr[j + 1]) {
+ int temp = arr[j];
+ arr[j] = arr[j + 1];
+ arr[j + 1] = temp;
+ }
+ }
+ }
+}
+void fork1()
+{
+int n;
+printf("Enter the number of values: \n");
+scanf("%d", &n);
+int arr[n];
+printf("Enter %d integers:\n", n);
+for(int i=0; i<n; i++)
+{
+scanf("%d", &arr[i]);
+}
+int pid = fork();
+if(pid == 0)
+{
+sleep(5);
+printf("Child process created\n");
+printf("Child process ID: %d \n", getpid());
+}
+else
+{
+printf("\nParent process \n");
+printf("Parent process ID: %d\n",getpid());
+bubbleSort(arr, n);
+printf("Sorted elements: \n");
+for(int i=0; i<n; i++)
+{
+printf("%d \n", arr[i]);
+}
+printf("\n");
+}
+}
+int main()
+{
+fork1();
+return 0;
+}
+// OUTPUT 
+Enter the number of values: 
+3
+Enter 3 integers:
+10 5 30
+Parent process 
+Parent process ID: 21321
+Sorted elements: 
+5 
+10 
+30 
+Q 2)
+Write the program to simulate FCFS CPU-scheduling. The arrival time and first 
+CPU-burst for different n number of processes should be input to the algorithm. 
+Assume that the fixed IO waiting time (2 units). The next CPU-burst should be 
+generated randomly. The output should give Gantt chart, turnaround time and waiting
+time for each process. Also find the average waiting time and turnaround time.
+// PROGRAM
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<sys/types.h>
+typedef struct process_info
+{
+ char pname[20];
+ int at,bt,ct,bt1;
+ struct process_info *next;
+}NODE;
+int n;
+NODE *first,*last;
+void accept_info()
+{
+ NODE *p;
+ int i;
+ printf("Enter no.of process:");
+ scanf("%d",&n);
+ for(i=0;i<n;i++)
+ {
+ p = (NODE*)malloc(sizeof(NODE));
+ printf("Enter process name:");
+ scanf("%s",p->pname);
+ printf("Enter arrival time:");
+ scanf("%d",&p->at);
+ printf("Enter first CPU burst time:");
+ scanf("%d",&p->bt);
+ p->bt1 = p->bt;
+ 
+ p->next = NULL;
+ if(first==NULL)
+ first=p;
+ else
+ last->next=p;
+ last = p;
+ }
+}
+void print_output()
+{
+ NODE *p;
+ float avg_tat=0,avg_wt=0;
+ printf("pname\tat\tbt\tct\ttat\twt\n");
+ p = first;
+ while(p!=NULL)
+ {
+ int tat = p->ct-p->at;
+ int wt = tat-p->bt;
+ 
+ avg_tat+=tat;
+ avg_wt+=wt;
+ printf("%s\t%d\t%d\t%d\t%d\t%d\n",
+ p->pname,p->at,p->bt,p->ct,tat,wt);
+ 
+ p=p->next;
+ }
+ printf("Avg TAT=%f\tAvg WT=%f\n",
+ avg_tat/n,avg_wt/n);
+}
+void print_input()
+{
+ NODE *p;
+ p = first;
+ printf("pname\tat\tbt\n");
+ while(p!=NULL)
+ {
+ printf("%s\t%d\t%d\n",
+ p->pname,p->at,p->bt1);
+ p = p->next;
+ }
+}
+void sort()
+{
+ NODE *p,*q;
+ int t;
+ char name[20];
+ p = first;
+ while(p->next!=NULL)
+ {
+ q=p->next;
+ while(q!=NULL)
+ {
+ if(p->at > q->at)
+ {
+ strcpy(name,p->pname);
+ strcpy(p->pname,q->pname);
+ strcpy(q->pname,name);
+ t = p->at;
+ p->at = q->at;
+ q->at = t;
+ 
+ t = p->bt;
+ p->bt = q->bt;
+ q->bt = t;
+ t = p->ct;
+ p->ct = q->ct;
+ q->ct = t;
+ t = p->bt1;
+ p->bt1 = q->bt1;
+ q->bt1 = t;
+ }
+ q=q->next;
+ }
+ p=p->next;
+ }
+}
+int time;
+NODE * get_fcfs()
+{
+ NODE *p;
+ p = first;
+ while(p!=NULL)
+ {
+ if(p->at<=time && p->bt1!=0)
+ return p;
+ p=p->next;
+ }
+ return NULL;
+}
+struct gantt_chart
+{
+ int start;
+ char pname[30];
+ int end;
+}s[100],s1[100];
+int k;
+void fcfs()
+{
+ int prev=0,n1=0;
+ NODE *p;
+ while(n1!=n)
+ {
+ p = get_fcfs();
+ if(p==NULL)
+ {
+ time++;
+ s[k].start = prev;
+ strcpy(s[k].pname,"*");
+ s[k].end = time;
+ prev = time;
+ k++;
+ }
+ else
+ {
+ time+=p->bt1;
+ s[k].start = prev;
+ strcpy(s[k].pname, p->pname);
+ s[k].end = time;
+ prev = time;
+ k++;
+ p->ct = time;
+ p->bt1 = 0;
+ n1++;
+ }
+ print_input(); 
+ sort();
+ }
+}
+void print_gantt_chart()
+{
+ int i,j,m;
+ s1[0] = s[0];
+ for(i=1,j=0;i<k;i++)
+ {
+ if(strcmp(s[i].pname,s1[j].pname)==0)
+ s1[j].end = s[i].end;
+ else
+ s1[++j] = s[i];
+ }
+ printf("%d",s1[0].start);
+ for(i=0;i<=j;i++)
+ {
+ m = (s1[i].end - s1[i].start);
+ for(k=0;k<m/2;k++)
+ printf("-");
+ printf("%s",s1[i].pname);
+ for(k=0;k<(m+1)/2;k++)
+ printf("-");
+ printf("%d",s1[i].end);
+ }
+}
+int main()
+{
+ accept_info();
+ sort();
+ fcfs();
+ print_output();
+ print_gantt_chart();
+ return 0;
+}
+//OUTPUT
+Enter no.of process:3
+Enter process name:1
+Enter arrival time:0
+Enter first CPU burst time:2
+Enter process name:2
+Enter arrival time:5
+Enter first CPU burst time:3
+Enter process name:3
+Enter arrival time:2
+Enter first CPU burst time:6
+pname at bt
+1 0 0
+3 2 6
+2 5 3
+pname at bt
+1 0 0
+3 2 0
+2 5 3
+pname at bt
+1 0 0
+3 2 0
+2 5 0
+pname at bt ct tat wt
+1 0 2 2 2 0
+3 2 6 8 6 0
+2 5 3 11 6 3
+Avg TAT=4.666667 Avg WT=1.000000
+0-1-2---3---8-2--11
+SLIP 5
+Q 1)
+Implement the C program to accept n integers to be sorted. Main function creates
+child process using fork system call. Child process sorts the integers using bubble 
+sort and waits for Parent process using wait system call.
+// PROGRAM 
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<sys/types.h>
+#include<unistd.h>
+void bubbleSort(int arr[], int n) {
+ for (int i = 0; i < n - 1; i++) {
+ for (int j = 0; j < n - i - 1; j++) {
+ if (arr[j] > arr[j + 1]) {
+ int temp = arr[j];
+ arr[j] = arr[j + 1];
+ arr[j + 1] = temp;
+ }
+ }
+ }
+}
+void fork1()
+{
+int n;
+printf("Enter the number of values: \n");
+scanf("%d", &n);
+int arr[n];
+printf("Enter %d integers:\n", n);
+for(int i=0; i<n; i++)
+{
+scanf("%d", &arr[i]);
+}
+int pid = fork();
+if(pid == 0)
+{
+sleep(5);
+printf("Child process created\n");
+printf("Child process ID: %d \n", getpid());
+}
+else
+{
+printf("\nParent process \n");
+printf("Parent process ID: %d\n",getpid());
+bubbleSort(arr, n);
+printf("Sorted elements: \n");
+for(int i=0; i<n; i++)
+{
+printf("%d \n", arr[i]);
+}
+printf("\n");
+}
+}
+int main()
+{
+fork1();
+return 0;
+}
+// OUTPUT 
+Enter the number of values: 
+3
+Enter 3 integers:
+10 5 30
+Parent process 
+Parent process ID: 21321
+Sorted elements: 
+5 
+10 
+30 
+Q 2)
+Write the program to simulate Non-preemptive Shortest Job First (SJF) -scheduling.
+The arrival time and first CPU-burst for different n number of processes should be 
+input to the algorithm. Assume the fixed IO waiting time (2 units). The next CPUburst should be generated randomly. The output should give Gantt chart, turnaround 
+time and waiting time for each process. Also find the average waiting time and 
+turnaround time.
+// PROGRAM
+#include<stdio.h>
+#include<string.h>
+#include<stdlib.h>
+typedef struct SJF
+{
+char name[20];
+int at,bt,ct,tbt,wt,tat;
+}SJF;
+SJF* s;
+int n, currenttime, cnt;
+float totalwt, totaltat, avgwt, avgtat;
+void accept()
+{
+int i;
+printf("Enter no. of processes: ");
+scanf("%d", &n);
+s = (SJF*)malloc(sizeof(SJF)*n);
+for(i=0; i<n; i++)
+{
+printf("Enter process name: ");
+scanf("%s", s[i].name);
+printf("Enter arrival time: ");
+scanf("%d", &s[i].at);
+printf("Enter burst time: ");
+scanf("%d", &s[i].bt);
+s[i].tbt = s[i].bt;
+}
+}
+void sort()
+{
+SJF t;
+int i, j;
+for(i=0; i<n; i++)
+for(j=i+1; j<n; j++)
+if(s[i].at > s[j].at)
+{
+t = s[i];
+s[i] = s[j];
+s[j] = t;
+}
+}
+int getindex()
+{
+int i, loc=-1, min = 999;
+for(i=0; i<n; i++)
+if(s[i].tbt!= 0 && s[i].at <= currenttime)
+{
+if(s[i].bt<min)
+{
+min = s[i].bt;
+loc = i;
+}
+}
+return loc;
+}
+void schedule()
+{
+int i;
+sort();
+printf("\n ******************************* Gantt Chart 
+***********************\n");
+while(1)
+{
+i = getindex();
+if(i == -1)
+{
+printf("|%d idel",currenttime);
+currenttime = s[cnt].at;
+printf("%d", currenttime);
+}
+else
+{
+printf("| %d %s", currenttime, s[i].name);
+s[i].wt=currenttime-s[i].at;
+s[i].tat=s[i].wt+s[i].bt;
+s[i].tbt=0;
+currenttime+=s[i].bt;
+s[i].ct=currenttime;
+printf("%d",currenttime);
+totalwt+=s[i].wt;
+totaltat+=s[i].tat;
+cnt++;
+if(cnt == n)
+break;
+}
+}
+avgwt = totalwt / n;
+avgtat = totaltat / n;
+}
+void display()
+{
+int i;
+printf("\
+n******************************************************************\
+n");
+printf("\nName \t Arrival Time \t Burst Time \t Waiting Time \t Turn Around 
+Time \n");
+for(i=0;i<n;i++)
+printf("%s\t%d\t\t%d\t\t%d\t\t%d\
+n",s[i].name,s[i].at,s[i].bt,s[i].wt,s[i].tat);
+printf("\n Total Waiting Time %.2f",totalwt);
+printf("\n Total Turn Around Time %.2f",totaltat);
+printf("\n Average Waiting TIme %.2f",avgwt);
+printf("\n Average Turn Around Time %.2f\n",avgtat);
+}
+int main()
+{
+accept();
+schedule();
+display();
+}
+// OUTPUT
+Enter no. of processes: 2
+Enter process name: 1
+Enter arrival time: 0
+Enter burst time: 3
+Enter process name: 2
+Enter arrival time: 1
+Enter burst time: 5
+ ******************************* Gantt Chart ***********************
+| 0 13| 3 28
+******************************************************************
+Name Arrival Time Burst Time Waiting Time Turn Around Time 
+1 0 3 0 3
+2 1 5 2 7
+ Total Waiting Time 2.00
+ Total Turn Around Time 10.00
+ Average Waiting TIme 1.00
+ Average Turn Around Time 5.00
+SLIP 6
+Q 1)
+Write the simulation program to implement demand paging and show the page
+scheduling and total number of page faults for the following given page reference 
+string.
+Give input n as the number of memory frames.
+Implement FIFO.
+Reference String : 12,15,12,18,6,8,11,12,19,12,6,8,12,15,19,8
+// PROGRAM
+ #include <stdio.h>
+#include <stdbool.h>
+int findEmptyFrame(int memoryFrames[], int n) {
+ for (int i = 0; i < n; i++) {
+ if (memoryFrames[i] == -1) {
+ return i;
+ }
+ }
+ return -1; // No empty frame found
+}
+bool isInMemory(int page, int memoryFrames[], int n) {
+ for (int i = 0; i < n; i++) {
+ if (memoryFrames[i] == page) {
+ return true;
+ }
+ }
+ return false;
+}
+void simulateFIFO(int referenceString[], int n, int referenceStringLength) {
+ int memoryFrames[n];
+ int pageQueue[n];
+ int front = 0, rear = 0;
+ int pageFaults = 0;
+ for (int i = 0; i < n; i++) {
+ memoryFrames[i] = -1; // Initialize memory frames with -1
+ pageQueue[i] = -1; // Initialize page queue with -1
+ }
+ for (int i = 0; i < referenceStringLength; i++) {
+ int currentPage = referenceString[i];
+ if (!isInMemory(currentPage, memoryFrames, n)) {
+ pageFaults++;
+ if (rear < n) {
+ int emptyFrame = findEmptyFrame(memoryFrames, n);
+ if (emptyFrame != -1) {
+ memoryFrames[emptyFrame] = currentPage;
+ pageQueue[rear] = currentPage;
+ rear++;
+ } else {
+ int victimPage = pageQueue[front];
+ front++;
+ for (int j = 0; j < n; j++) {
+ if (memoryFrames[j] == victimPage) {
+ memoryFrames[j] = currentPage;
+ }
+ }
+ }
+ }
+ }
+ printf("Memory Frames: ");
+ for (int j = 0; j < n; j++) {
+ printf("%d ", memoryFrames[j]);
+ }
+ printf(", Page Queue: ");
+ for (int j = front; j < rear; j++) {
+ printf("%d ", pageQueue[j]);
+ }
+ printf("\n");
+ }
+ printf("Total Page Faults: %d\n", pageFaults);
+}
+int main() {
+ int referenceString[] = {12, 15, 12, 18, 6, 8, 11, 12, 19, 12, 6, 8, 12, 15, 19, 8};
+ int n = 3; // Number of memory frames
+ int referenceStringLength = sizeof(referenceString) / sizeof(referenceString[0]);
+ simulateFIFO(referenceString, n, referenceStringLength);
+ return 0;
+}
+// OUTPUT
+Memory Frames: 12 -1 -1 , Page Queue: 12 
+Memory Frames: 12 15 -1 , Page Queue: 12 15 
+Memory Frames: 12 15 -1 , Page Queue: 12 15 
+Memory Frames: 12 15 18 , Page Queue: 12 15 18 
+Memory Frames: 12 15 18 , Page Queue: 12 15 18 
+Memory Frames: 12 15 18 , Page Queue: 12 15 18 
+Memory Frames: 12 15 18 , Page Queue: 12 15 18 
+Memory Frames: 12 15 18 , Page Queue: 12 15 18 
+Memory Frames: 12 15 18 , Page Queue: 12 15 18 
+Memory Frames: 12 15 18 , Page Queue: 12 15 18 
+Memory Frames: 12 15 18 , Page Queue: 12 15 18 
+Memory Frames: 12 15 18 , Page Queue: 12 15 18 
+Memory Frames: 12 15 18 , Page Queue: 12 15 18 
+Memory Frames: 12 15 18 , Page Queue: 12 15 18 
+Memory Frames: 12 15 18 , Page Queue: 12 15 18 
+Memory Frames: 12 15 18 , Page Queue: 12 15 18 
+Total Page Faults: 11
+NOTE: output may vary
+Q 2) Write a C program that behaves like a shell which displays the command prompt
+‘myshell$’. It accepts the command, tokenize the command line and execute it by 
+creating
+the child process. Also implement the additional command ‘count’ as
+myshell$ count c filename: It will display the number of characters in given file
+myshell$ count w filename: It will display the number of words in given file
+myshell$ count l filename: It will display the number of lines in given file
+// PROGRAM
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+void make_toks(char *s, char *tok[]) {
+ int i = 0;
+ char *p;
+ p = strtok(s, " ");
+ while (p != NULL) {
+ tok[i++] = p;
+ p = strtok(NULL, " ");
+ }
+ tok[i] = NULL;
+}
+void count(char *fn, char op) {
+ int fh, cc = 0, wc = 0, lc = 0;
+ char c;
+ fh = open(fn, O_RDONLY); // Fixed the open flag
+ if (fh == -1) {
+ printf("File %s is not found.\n", fn);
+ return;
+ }
+ while (read(fh, &c, 1) > 0) { // Read one character at a time
+ if (c == ' ')
+ wc++;
+ else if (c == '\n') {
+ wc++;
+ lc++;
+ }
+ cc++;
+ }
+ close(fh);
+ switch (op) {
+ case 'c':
+ printf("No. of characters: %d\n", cc);
+ break;
+ case 'w':
+ printf("No. of words: %d\n", wc);
+ break;
+ case 'l':
+ printf("No. of lines: %d\n", lc + 1);
+ break;
+ }
+}
+int main() {
+ char buff[80], *args[10];
+ int pid;
+ while (1) {
+ printf("myshell$: ");
+ fflush(stdin);
+ fgets(buff, sizeof(buff), stdin);
+ buff[strlen(buff) - 1] = '\0';
+ make_toks(buff, args);
+ if (strcmp(args[0], "count") == 0)
+ count(args[2], args[1][0]);
+ else {
+ pid = fork();
+ if (pid > 0)
+ wait(NULL);
+ else {
+ if (execvp(args[0], args) == -1)
+ printf("Bad command.\n");
+ }
+ }
+ }
+ return 0;
+}
+SLIP 7
+Q 1) Write a program that demonstrates the use of nice() system call. After a child 
+process is
+started using fork(), assign higher priority to the child using nice() system call.
+// PROGRAM
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/time.h>
+#include <sys/wait.h> // Include the header for wait
+int main() {
+ pid_t child_pid;
+ int parent_nice_value, child_nice_value;
+ parent_nice_value = nice(0);
+ if (parent_nice_value == -1) {
+ perror("Error getting parent's nice value");
+ return 1;
+ }
+ printf("Parent process nice value: %d\n", parent_nice_value);
+ child_pid = fork();
+ if (child_pid == -1) {
+ perror("Fork failed");
+ return 1;
+ } else if (child_pid == 0) {
+ child_nice_value = 10;
+ if (nice(child_nice_value) == -1) {
+ perror("Error setting child's nice value");
+ return 1;
+ }
+ printf("Child process nice value: %d\n", nice(0));
+ } else {
+ int status;
+ wait(&status); // Wait for the child process to complete
+ if (WIFEXITED(status)) {
+ parent_nice_value = nice(0);
+ printf("Parent process nice value after child execution: %d\n", 
+parent_nice_value);
+ }
+ }
+ return 0;
+}
+// OUTPUT
+Parent process nice value: 0
+Child process nice value: 10
+Parent process nice value after child execution: 0
+Q2) Write the program to simulate Preemptive Shortest Job First (SJF) -scheduling. 
+The
+arrival time and first CPU-burst for different n number of processes should be input 
+to the
+algorithm. Assume the fixed IO waiting time (2 units). The next CPU-burst should be
+generated randomly. The output should give Gantt chart, turnaround time and waiting
+time
+for each process. Also find the average waiting time and turnaround time.
+// PROGRAM
+#include<stdio.h>
+#include<string.h>
+#include<stdlib.h>
+typedef struct SJF
+{
+char name[20];
+int at,bt,ct,tbt,wt,tat;
+}SJF;
+SJF* s;
+int n, currenttime, cnt;
+float totalwt, totaltat, avgwt, avgtat;
+void accept()
+{
+int i;
+printf("Enter no. of processes: ");
+scanf("%d", &n);
+s = (SJF*)malloc(sizeof(SJF)*n);
+for(i=0; i<n; i++)
+{
+printf("Enter process name: ");
+scanf("%s", s[i].name);
+printf("Enter arrival time: ");
+scanf("%d", &s[i].at);
+printf("Enter burst time: ");
+scanf("%d", &s[i].bt);
+s[i].tbt = s[i].bt;
+}
+}
+void sort()
+{
+SJF t;
+int i, j;
+for(i=0; i<n; i++)
+for(j=i+1; j<n; j++)
+if(s[i].at > s[j].at)
+{
+t = s[i];
+s[i] = s[j];
+s[j] = t;
+}
+}
+int getindex()
+{
+int i, loc=-1, min = 999;
+for(i=0; i<n; i++)
+if(s[i].tbt!= 0 && s[i].at <= currenttime)
+{
+if(s[i].bt<min)
+{
+min = s[i].bt;
+loc = i;
+}
+}
+return loc;
+}
+void schedule()
+{
+int i;
+sort();
+printf("\n ******************************* Gantt Chart 
+***********************\n");
+while(1)
+{
+i = getindex();
+if(i == -1)
+{
+printf("|%d idel",currenttime);
+currenttime = s[cnt].at;
+printf("%d", currenttime);
+}
+else
+{
+printf("| %d %s", currenttime, s[i].name);
+s[i].wt=currenttime-s[i].at;
+s[i].tat=s[i].wt+s[i].bt;
+s[i].tbt=0;
+currenttime+=s[i].bt;
+s[i].ct=currenttime;
+printf("%d",currenttime);
+totalwt+=s[i].wt;
+totaltat+=s[i].tat;
+cnt++;
+if(cnt == n)
+break;
+}
+}
+avgwt = totalwt / n;
+avgtat = totaltat / n;
+}
+void display()
+{
+int i;
+printf("\
+n******************************************************************\
+n");
+printf("\nName \t Arrival Time \t Burst Time \t Waiting Time \t Turn Around 
+Time \n");
+for(i=0;i<n;i++)
+printf("%s\t%d\t\t%d\t\t%d\t\t%d\
+n",s[i].name,s[i].at,s[i].bt,s[i].wt,s[i].tat);
+printf("\n Total Waiting Time %.2f",totalwt);
+printf("\n Total Turn Around Time %.2f",totaltat);
+printf("\n Average Waiting TIme %.2f",avgwt);
+printf("\n Average Turn Around Time %.2f\n",avgtat);
+}
+int main()
+{
+accept();
+schedule();
+display();
+}
+SLIP 10
+Q1
+Write the simulation program to implement demand paging and show the page
+scheduling and total number of page faults for the following given page reference 
+string.
+Give input n as the number of memory frames.
+Implement FIFO.
+Reference String : 12,15,12,18,6,8,11,12,19,12,6,8,12,15,19,8
+// PROGRAM
+#include <stdio.h>
+#include <stdbool.h>
+int findEmptyFrame(int memoryFrames[], int n) {
+ for (int i = 0; i < n; i++) {
+ if (memoryFrames[i] == -1) {
+ return i;
+ }
+ }
+ return -1; // No empty frame found
+}
+bool isInMemory(int page, int memoryFrames[], int n) {
+ for (int i = 0; i < n; i++) {
+ if (memoryFrames[i] == page) {
+ return true;
+ }
+ }
+ return false;
+}
+void simulateFIFO(int referenceString[], int n, int referenceStringLength) {
+ int memoryFrames[n];
+ int pageQueue[n];
+ int front = 0, rear = 0;
+ int pageFaults = 0;
+ for (int i = 0; i < n; i++) {
+ memoryFrames[i] = -1; // Initialize memory frames with -1
+ pageQueue[i] = -1; // Initialize page queue with -1
+ }
+ for (int i = 0; i < referenceStringLength; i++) {
+ int currentPage = referenceString[i];
+ if (!isInMemory(currentPage, memoryFrames, n)) {
+ pageFaults++;
+ if (rear < n) {
+ int emptyFrame = findEmptyFrame(memoryFrames, n);
+ if (emptyFrame != -1) {
+ memoryFrames[emptyFrame] = currentPage;
+ pageQueue[rear] = currentPage;
+ rear++;
+ } else {
+ int victimPage = pageQueue[front];
+ front++;
+ for (int j = 0; j < n; j++) {
+ if (memoryFrames[j] == victimPage) {
+ memoryFrames[j] = currentPage;
+ }
+ }
+ }
+ }
+ }
+ printf("Memory Frames: ");
+ for (int j = 0; j < n; j++) {
+ printf("%d ", memoryFrames[j]);
+ }
+ printf(", Page Queue: ");
+ for (int j = front; j < rear; j++) {
+ printf("%d ", pageQueue[j]);
+ }
+ printf("\n");
+ }
+ printf("Total Page Faults: %d\n", pageFaults);
+}
+int main() {
+ int referenceString[] = {12, 15, 12, 18, 6, 8, 11, 12, 19, 12, 6, 8, 12, 15, 19, 8};
+ int n = 3; // Number of memory frames
+ int referenceStringLength = sizeof(referenceString) / sizeof(referenceString[0]);
+ simulateFIFO(referenceString, n, referenceStringLength);
+ return 0;
+}
+Q 2)
+Write a C program that behaves like a shell which displays the command prompt
+‘myshell$’. It accepts the command, tokenize the command line and execute it by 
+creating
+the child process. Also implement the additional command ‘count’ as
+myshell$ count c filename: It will display the number of characters in given file
+myshell$ count w filename: It will display the number of words in given file
+myshell$ count l filename: It will display the number of lines in given file.
+// PROGRAM
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+void make_toks(char *s, char *tok[]) {
+ int i = 0;
+ char *p;
+ p = strtok(s, " ");
+ while (p != NULL) {
+ tok[i++] = p;
+ p = strtok(NULL, " ");
+ }
+ tok[i] = NULL;
+}
+void count(char *fn, char op) {
+ int fh, cc = 0, wc = 0, lc = 0;
+ char c;
+ fh = open(fn, O_RDONLY); // Fixed the open flag
+ if (fh == -1) {
+ printf("File %s is not found.\n", fn);
+ return;
+ }
+ while (read(fh, &c, 1) > 0) { // Read one character at a time
+ if (c == ' ')
+ wc++;
+ else if (c == '\n') {
+ wc++;
+ lc++;
+ }
+ cc++;
+ }
+ close(fh);
+ switch (op) {
+ case 'c':
+ printf("No. of characters: %d\n", cc);
+ break;
+ case 'w':
+ printf("No. of words: %d\n", wc);
+ break;
+ case 'l':
+ printf("No. of lines: %d\n", lc + 1);
+ break;
+ }
+}
+int main() {
+ char buff[80], *args[10];
+ int pid;
+ while (1) {
+ printf("myshell$: ");
+ fflush(stdin);
+ fgets(buff, sizeof(buff), stdin);
+ buff[strlen(buff) - 1] = '\0';
+ make_toks(buff, args);
+ if (strcmp(args[0], "count") == 0)
+ count(args[2], args[1][0]);
+ else {
+ pid = fork();
+ if (pid > 0)
+ wait(NULL);
+ else {
+ if (execvp(args[0], args) == -1)
+ printf("Bad command.\n");
+ }
+ }
+ }
+ return 0;
+}
+SLIP 11
+Q 1)
+Implement the C program to accept n integers to be sorted. Main function creates
+child process using fork system call. Child process sorts the integers using bubble 
+sort and
+waits for Parent process using wait system call.
+// PROGRAM
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<sys/types.h>
+#include<unistd.h>
+void bubbleSort(int arr[], int n) {
+ for (int i = 0; i < n - 1; i++) {
+ for (int j = 0; j < n - i - 1; j++) {
+ if (arr[j] > arr[j + 1]) {
+ int temp = arr[j];
+ arr[j] = arr[j + 1];
+ arr[j + 1] = temp;
+ }
+ }
+ }
+}
+void fork1()
+{
+int n;
+printf("Enter the number of values: \n");
+scanf("%d", &n);
+int arr[n];
+printf("Enter %d integers:\n", n);
+for(int i=0; i<n; i++)
+{
+scanf("%d", &arr[i]);
+}
+int pid = fork();
+if(pid == 0)
+{
+sleep(5);
+printf("Child process created\n");
+printf("Child process ID: %d \n", getpid());
+}
+else
+{
+printf("\nParent process \n");
+printf("Parent process ID: %d\n",getpid());
+bubbleSort(arr, n);
+printf("Sorted elements: \n");
+for(int i=0; i<n; i++)
+{
+printf("%d \n", arr[i]);
+}
+printf("\n");
+}
+}
+int main()
+{
+fork1();
+return 0;
+}
+Q 2)
+Write the program to simulate FCFS CPU-scheduling. The arrival time and first 
+CPUburst for different n number of processes should be input to the algorithm. Assume 
+that the
+fixed IO waiting time (2 units). The next CPU-burst should be generated randomly. 
+The
+output should give Gantt chart, turnaround time and waiting time for each process. 
+Also find
+the average waiting time and turnaround time.
+// PROGRAM
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<sys/types.h>
+typedef struct process_info
+{
+ char pname[20];
+ int at,bt,ct,bt1;
+ struct process_info *next;
+}NODE;
+int n;
+NODE *first,*last;
+void accept_info()
+{
+ NODE *p;
+ int i;
+ printf("Enter no.of process:");
+ scanf("%d",&n);
+ for(i=0;i<n;i++)
+ {
+ p = (NODE*)malloc(sizeof(NODE));
+ printf("Enter process name:");
+ scanf("%s",p->pname);
+ printf("Enter arrival time:");
+ scanf("%d",&p->at);
+ printf("Enter first CPU burst time:");
+ scanf("%d",&p->bt);
+ p->bt1 = p->bt;
+ 
+ p->next = NULL;
+ if(first==NULL)
+ first=p;
+ else
+ last->next=p;
+ last = p;
+ }
+}
+void print_output()
+{
+ NODE *p;
+ float avg_tat=0,avg_wt=0;
+ printf("pname\tat\tbt\tct\ttat\twt\n");
+ p = first;
+ while(p!=NULL)
+ {
+ int tat = p->ct-p->at;
+ int wt = tat-p->bt;
+ 
+ avg_tat+=tat;
+ avg_wt+=wt;
+ printf("%s\t%d\t%d\t%d\t%d\t%d\n",
+ p->pname,p->at,p->bt,p->ct,tat,wt);
+ 
+ p=p->next;
+ }
+ printf("Avg TAT=%f\tAvg WT=%f\n",
+ avg_tat/n,avg_wt/n);
+}
+void print_input()
+{
+ NODE *p;
+ p = first;
+ printf("pname\tat\tbt\n");
+ while(p!=NULL)
+ {
+ printf("%s\t%d\t%d\n",
+ p->pname,p->at,p->bt1);
+ p = p->next;
+ }
+}
+void sort()
+{
+ NODE *p,*q;
+ int t;
+ char name[20];
+ p = first;
+ while(p->next!=NULL)
+ {
+ q=p->next;
+ while(q!=NULL)
+ {
+ if(p->at > q->at)
+ {
+ strcpy(name,p->pname);
+ strcpy(p->pname,q->pname);
+ strcpy(q->pname,name);
+ t = p->at;
+ p->at = q->at;
+ q->at = t;
+ 
+ t = p->bt;
+ p->bt = q->bt;
+ q->bt = t;
+ t = p->ct;
+ p->ct = q->ct;
+ q->ct = t;
+ t = p->bt1;
+ p->bt1 = q->bt1;
+ q->bt1 = t;
+ }
+ q=q->next;
+ }
+ p=p->next;
+ }
+}
+int time;
+NODE * get_fcfs()
+{
+ NODE *p;
+ p = first;
+ while(p!=NULL)
+ {
+ if(p->at<=time && p->bt1!=0)
+ return p;
+ p=p->next;
+ }
+ return NULL;
+}
+struct gantt_chart
+{
+ int start;
+ char pname[30];
+ int end;
+}s[100],s1[100];
+int k;
+void fcfs()
+{
+ int prev=0,n1=0;
+ NODE *p;
+ while(n1!=n)
+ {
+ p = get_fcfs();
+ if(p==NULL)
+ {
+ time++;
+ s[k].start = prev;
+ strcpy(s[k].pname,"*");
+ s[k].end = time;
+ prev = time;
+ k++;
+ }
+ else
+ {
+ time+=p->bt1;
+ s[k].start = prev;
+ strcpy(s[k].pname, p->pname);
+ s[k].end = time;
+ prev = time;
+ k++;
+ p->ct = time;
+ p->bt1 = 0;
+ n1++;
+ }
+ print_input(); 
+ sort();
+ }
+}
+void print_gantt_chart()
+{
+ int i,j,m;
+ s1[0] = s[0];
+ for(i=1,j=0;i<k;i++)
+ {
+ if(strcmp(s[i].pname,s1[j].pname)==0)
+ s1[j].end = s[i].end;
+ else
+ s1[++j] = s[i];
+ }
+ printf("%d",s1[0].start);
+ for(i=0;i<=j;i++)
+ {
+ m = (s1[i].end - s1[i].start);
+ for(k=0;k<m/2;k++)
+ printf("-");
+ printf("%s",s1[i].pname);
+ for(k=0;k<(m+1)/2;k++)
+ printf("-");
+ printf("%d",s1[i].end);
+ }
+}
+int main()
+{
+ accept_info();
+ sort();
+ fcfs();
+ print_output();
+ print_gantt_chart();
+ return 0;
+}
+SLIP 12
+Q 1)
+Implement the C program to accept n integers to be sorted. Main function creates
+child process using fork system call. Parent process sorts the integers using bubble 
+sort and
+waits for child process using wait system call.
+// PROGRAM
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<sys/types.h>
+#include<unistd.h>
+void bubbleSort(int arr[], int n) {
+ for (int i = 0; i < n - 1; i++) {
+ for (int j = 0; j < n - i - 1; j++) {
+ if (arr[j] > arr[j + 1]) {
+ int temp = arr[j];
+ arr[j] = arr[j + 1];
+ arr[j + 1] = temp;
+ }
+ }
+ }
+}
+void fork1()
+{
+int n;
+printf("Enter the number of values: \n");
+scanf("%d", &n);
+int arr[n];
+printf("Enter %d integers:\n", n);
+for(int i=0; i<n; i++)
+{
+scanf("%d", &arr[i]);
+}
+int pid = fork();
+if(pid == 0)
+{
+sleep(5);
+printf("Child process created\n");
+printf("Child process ID: %d \n", getpid());
+}
+else
+{
+printf("\nParent process \n");
+printf("Parent process ID: %d\n",getpid());
+bubbleSort(arr, n);
+printf("Sorted elements: \n");
+for(int i=0; i<n; i++)
+{
+printf("%d \n", arr[i]);
+}
+printf("\n");
+}
+}
+int main()
+{
+fork1();
+return 0;
+}
+Q 2)
+Write the program to simulate Pre-emptive Shortest Job First (SJF) -scheduling. The
+arrival time and first CPU-burst for different n number of processes should be input 
+to the
+algorithm. Assume the fixed IO waiting time (2 units). The next CPU-burst should be
+generated randomly. The output should give Gantt chart, turnaround time and waiting
+time
+for each process. Also find the average waiting time and turnaround time.
+// PROGRAM
+#include<stdio.h>
+#include<string.h>
+#include<stdlib.h>
+typedef struct SJF
+{
+char name[20];
+int at,bt,ct,tbt,wt,tat;
+}SJF;
+SJF* s;
+int n, currenttime, cnt;
+float totalwt, totaltat, avgwt, avgtat;
+void accept()
+{
+int i;
+printf("Enter no. of processes: ");
+scanf("%d", &n);
+s = (SJF*)malloc(sizeof(SJF)*n);
+for(i=0; i<n; i++)
+{
+printf("Enter process name: ");
+scanf("%s", s[i].name);
+printf("Enter arrival time: ");
+scanf("%d", &s[i].at);
+printf("Enter burst time: ");
+scanf("%d", &s[i].bt);
+s[i].tbt = s[i].bt;
+}
+}
+void sort()
+{
+SJF t;
+int i, j;
+for(i=0; i<n; i++)
+for(j=i+1; j<n; j++)
+if(s[i].at > s[j].at)
+{
+t = s[i];
+s[i] = s[j];
+s[j] = t;
+}
+}
+int getindex()
+{
+int i, loc=-1, min = 999;
+for(i=0; i<n; i++)
+if(s[i].tbt!= 0 && s[i].at <= currenttime)
+{
+if(s[i].bt<min)
+{
+min = s[i].bt;
+loc = i;
+}
+}
+return loc;
+}
+void schedule()
+{
+int i;
+sort();
+printf("\n ******************************* Gantt Chart 
+***********************\n");
+while(1)
+{
+i = getindex();
+if(i == -1)
+{
+printf("|%d idel",currenttime);
+currenttime = s[cnt].at;
+printf("%d", currenttime);
+}
+else
+{
+printf("| %d %s", currenttime, s[i].name);
+s[i].wt=currenttime-s[i].at;
+s[i].tat=s[i].wt+s[i].bt;
+s[i].tbt=0;
+currenttime+=s[i].bt;
+s[i].ct=currenttime;
+printf("%d",currenttime);
+totalwt+=s[i].wt;
+totaltat+=s[i].tat;
+cnt++;
+if(cnt == n)
+break;
+}
+}
+avgwt = totalwt / n;
+avgtat = totaltat / n;
+}
+void display()
+{
+int i;
+printf("\
+n******************************************************************\
+n");
+printf("\nName \t Arrival Time \t Burst Time \t Waiting Time \t Turn Around 
+Time \n");
+for(i=0;i<n;i++)
+printf("%s\t%d\t\t%d\t\t%d\t\t%d\
+n",s[i].name,s[i].at,s[i].bt,s[i].wt,s[i].tat);
+printf("\n Total Waiting Time %.2f",totalwt);
+printf("\n Total Turn Around Time %.2f",totaltat);
+printf("\n Average Waiting TIme %.2f",avgwt);
+printf("\n Average Turn Around Time %.2f\n",avgtat);
+}
+int main()
+{
+accept();
+schedule();
+display();
+}
+SLIP 14
+Q 1)Implement the C Program to create a child process using fork(), display parent 
+and
+child process id. Child process will display the message “I am Child Process” and the
+parent
+process should display “I am Parent Process”.
+// PROGRAM
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<sys/types.h>
+int main() {
+int pid = fork();
+if(pid > 0)
+{
+printf("I am a parent process\n");
+printf("Parent Process ID: %d \n\n",getpid());
+}
+else if (pid == 0)
+{
+printf("I am a child process \n");
+printf("Child Process ID: %d \n\n",getpid());;
+}
+else 
+{
+printf("Process creation failed...\n");
+exit(0);
+}
+return 0;
+}
+Q 2) Write a C program that behaves like a shell which displays the command prompt
+‘myshell$’. It accepts the command, tokenize the command line and execute it by 
+creating
+the child process. Also implement the additional command ‘list’ as
+myshell$ list f dirname: It will display filenames in a given directory.
+myshell$ list n dirname: It will count the number of entries in a given directory.
+myshell$ list i dirname: It will display filenames and their inode number for the files 
+in a
+given directory.
+// PROGRAM
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#define MAX_COMMAND_LENGTH 100
+#define MAX_PATH_LENGTH 256
+#define MAX_ARGS 10
+void listFiles(char *dirname, char mode) {
+ DIR *dir;
+ struct dirent *entry;
+ struct stat fileStat;
+ if ((dir = opendir(dirname)) == NULL) {
+ perror("opendir");
+ return;
+ }
+ while ((entry = readdir(dir)) != NULL) {
+ if (entry->d_name[0] != '.') {
+ char path[MAX_PATH_LENGTH];
+ strcpy(path, dirname);
+ strcat(path, "/");
+ strcat(path, entry->d_name);
+ stat(path, &fileStat);
+ switch (mode) {
+ case 'f':
+ printf("%s\n", entry->d_name);
+ break;
+ case 'n':
+ // Count entries
+ break;
+ case 'i':
+ printf("%s - Inode: %lu\n", entry->d_name, fileStat.st_ino);
+ break;
+ default:
+ printf("Invalid mode.\n");
+ break;
+ }
+ }
+ }
+ closedir(dir);
+}
+int main() {
+ char command[MAX_COMMAND_LENGTH];
+ char *args[MAX_ARGS];
+ int numArgs;
+ while (1) {
+ printf("myshell$ ");
+ fgets(command, sizeof(command), stdin);
+ command[strlen(command) - 1] = '\0'; // Remove newline character
+ // Tokenize the command
+ char *token = strtok(command, " ");
+ numArgs = 0;
+ while (token != NULL) {
+ args[numArgs] = token;
+ numArgs++;
+ token = strtok(NULL, " ");
+ }
+ args[numArgs] = NULL; // Set the last element to NULL
+ if (strcmp(args[0], "list") == 0) {
+ if (numArgs >= 3) {
+ char mode = args[1][0];
+ char *dirname = args[2];
+ listFiles(dirname, mode);
+ } else {
+ printf("Usage: list [f|n|i] dirname\n");
+ }
+ } else {
+ pid_t pid = fork();
+ if (pid == 0) {
+ // Child process
+ execvp(args[0], args);
+ perror("execvp");
+ exit(1);
+ } else if (pid > 0) {
+ // Parent process
+ wait(NULL);
+ } else {
+ perror("fork");
+ }
+ }
+ }
+ return 0;
+}
+SLIP 15
+Q 1)
+Write the simulation program to implement demand paging and show the page
+scheduling and total number of page faults for the following given page reference 
+string.
+Give input n as the number of memory frames.
+Implement FIFO.
+Reference String : 12,15,12,18,6,8,11,12,19,12,6,8,12,15,19,8
+// PROGRAM
+#include <stdio.h>
+#include <stdbool.h>
+int findEmptyFrame(int memoryFrames[], int n) {
+ for (int i = 0; i < n; i++) {
+ if (memoryFrames[i] == -1) {
+ return i;
+ }
+ }
+ return -1; // No empty frame found
+}
+bool isInMemory(int page, int memoryFrames[], int n) {
+ for (int i = 0; i < n; i++) {
+ if (memoryFrames[i] == page) {
+ return true;
+ }
+ }
+ return false;
+}
+void simulateFIFO(int referenceString[], int n, int referenceStringLength) {
+ int memoryFrames[n];
+ int pageQueue[n];
+ int front = 0, rear = 0;
+ int pageFaults = 0;
+ for (int i = 0; i < n; i++) {
+ memoryFrames[i] = -1; // Initialize memory frames with -1
+ pageQueue[i] = -1; // Initialize page queue with -1
+ }
+ for (int i = 0; i < referenceStringLength; i++) {
+ int currentPage = referenceString[i];
+ if (!isInMemory(currentPage, memoryFrames, n)) {
+ pageFaults++;
+ if (rear < n) {
+ int emptyFrame = findEmptyFrame(memoryFrames, n);
+ if (emptyFrame != -1) {
+ memoryFrames[emptyFrame] = currentPage;
+ pageQueue[rear] = currentPage;
+ rear++;
+ } else {
+ int victimPage = pageQueue[front];
+ front++;
+ for (int j = 0; j < n; j++) {
+ if (memoryFrames[j] == victimPage) {
+ memoryFrames[j] = currentPage;
+ }
+ }
+ }
+ }
+ }
+ printf("Memory Frames: ");
+ for (int j = 0; j < n; j++) {
+ printf("%d ", memoryFrames[j]);
+ }
+ printf(", Page Queue: ");
+ for (int j = front; j < rear; j++) {
+ printf("%d ", pageQueue[j]);
+ }
+ printf("\n");
+ }
+ printf("Total Page Faults: %d\n", pageFaults);
+}
+int main() {
+ int referenceString[] = {12, 15, 12, 18, 6, 8, 11, 12, 19, 12, 6, 8, 12, 15, 19, 8};
+ int n = 3; // Number of memory frames
+ int referenceStringLength = sizeof(referenceString) / sizeof(referenceString[0]);
+ simulateFIFO(referenceString, n, referenceStringLength);
+ return 0;
+}
+Q 2)
+Implement the C program to accept n integers to be sorted. Main function creates
+child process using fork system call. Parent process sorts the integers using bubble 
+sort and
+waits for child process using wait system call. Child process sorts the integers using 
+insertion
+sort.
+// PROGRAM
+#include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
+#include<sys/types.h>
+#include<unistd.h>
+void bubbleSort(int arr[], int n) {
+ for (int i = 0; i < n - 1; i++) {
+ for (int j = 0; j < n - i - 1; j++) {
+ if (arr[j] > arr[j + 1]) {
+ int temp = arr[j];
+ arr[j] = arr[j + 1];
+ arr[j + 1] = temp;
+ }
+ }
+ }
+}
+void fork1()
+{
+int n;
+printf("Enter the number of values: \n");
+scanf("%d", &n);
+int arr[n];
+printf("Enter %d integers:\n", n);
+for(int i=0; i<n; i++)
+{
+scanf("%d", &arr[i]);
+}
+int pid = fork();
+if(pid == 0)
+{
+sleep(5);
+printf("Child process created\n");
+printf("Child process ID: %d \n", getpid());
+}
+else
+{
+printf("\nParent process \n");
+printf("Parent process ID: %d\n",getpid());
+bubbleSort(arr, n);
+printf("Sorted elements: \n");
+for(int i=0; i<n; i++)
+{
+printf("%d \n", arr[i]);
+}
+printf("\n");
+}
+}
+int main()
+{
+fork1();
+return 0;
+}
+SLIP 16
+Q 1)
+Write a C program to illustrate the concept of orphan process. Parent process creates 
+a child and terminates before child has finished its task. So child process becomes 
+orphan
+process. (Use fork(), sleep(), getpid(), getppid()).
+// PROGRAM
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+int main()
+{
+int pid = fork();
+if(pid > 0)
+{
+printf("Parent Process...\n");
+printf("Process Id: %d \n", getpid());
+}
+else if (pid == 0)
+{
+printf("Child process... \n");
+printf("Child process ID: %d \n Parent process id: %d", getpid(), 
+getppid());
+printf("Child process sleeping for 5 seconds....\n");
+sleep(5);
+printf("Child process... \n");
+printf("Child process ID: %d ", getpid());
+}
+else 
+{
+printf("Fork failed...");
+}
+return 0;
+}
+Q 2)
+Write the program to simulate Non-preemptive Shortest Job First (SJF) -scheduling.
+The arrival time and first CPU-burst for different n number of processes should be 
+input to
+the algorithm. Assume the fixed IO waiting time (2 units). The next CPU-burst 
+should be
+generated randomly. The output should give Gantt chart, turnaround time and waiting
+time
+for each process. Also find the average waiting time and turnaround time.
+// PROGRAM 
+#include<stdio.h>
+#include<string.h>
+#include<stdlib.h>
+typedef struct SJF
+{
+char name[20];
+int at,bt,ct,tbt,wt,tat;
+}SJF;
+SJF* s;
+int n, currenttime, cnt;
+float totalwt, totaltat, avgwt, avgtat;
+void accept()
+{
+int i;
+printf("Enter no. of processes: ");
+scanf("%d", &n);
+s = (SJF*)malloc(sizeof(SJF)*n);
+for(i=0; i<n; i++)
+{
+printf("Enter process name: ");
+scanf("%s", s[i].name);
+printf("Enter arrival time: ");
+scanf("%d", &s[i].at);
+printf("Enter burst time: ");
+scanf("%d", &s[i].bt);
+s[i].tbt = s[i].bt;
+}
+}
+void sort()
+{
+SJF t;
+int i, j;
+for(i=0; i<n; i++)
+for(j=i+1; j<n; j++)
+if(s[i].at > s[j].at)
+{
+t = s[i];
+s[i] = s[j];
+s[j] = t;
+}
+}
+int getindex()
+{
+int i, loc=-1, min = 999;
+for(i=0; i<n; i++)
+if(s[i].tbt!= 0 && s[i].at <= currenttime)
+{
+if(s[i].bt<min)
+{
+min = s[i].bt;
+loc = i;
+}
+}
+return loc;
+}
+void schedule()
+{
+int i;
+sort();
+printf("\n ******************************* Gantt Chart 
+***********************\n");
+while(1)
+{
+i = getindex();
+if(i == -1)
+{
+printf("|%d idel",currenttime);
+currenttime = s[cnt].at;
+printf("%d", currenttime);
+}
+else
+{
+printf("| %d %s", currenttime, s[i].name);
+s[i].wt=currenttime-s[i].at;
+s[i].tat=s[i].wt+s[i].bt;
+s[i].tbt=0;
+currenttime+=s[i].bt;
+s[i].ct=currenttime;
+printf("%d",currenttime);
+totalwt+=s[i].wt;
+totaltat+=s[i].tat;
+cnt++;
+if(cnt == n)
+break;
+}
+}
+avgwt = totalwt / n;
+avgtat = totaltat / n;
+}
+void display()
+{
+int i;
+printf("\
+n******************************************************************\
+n");
+printf("\nName \t Arrival Time \t Burst Time \t Waiting Time \t Turn Around 
+Time \n");
+for(i=0;i<n;i++)
+printf("%s\t%d\t\t%d\t\t%d\t\t%d\
+n",s[i].name,s[i].at,s[i].bt,s[i].wt,s[i].tat);
+printf("\n Total Waiting Time %.2f",totalwt);
+printf("\n Total Turn Around Time %.2f",totaltat);
+printf("\n Average Waiting TIme %.2f",avgwt);
+printf("\n Average Turn Around Time %.2f\n",avgtat);
+}
+int main()
+{
+accept();
+schedule();
+display();
+}
+SLIP 17
+Q 1)
+Implement the C Program to create a child process using fork(), display parent and
+child process id. Child process will display the message “I am Child Process” and the
+parent
+process should display “I am Parent Process”.
+// PROGRAM
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<sys/types.h>
+int main() {
+int pid = fork();
+if(pid > 0)
+{
+printf("I am a parent process\n");
+printf("Parent Process ID: %d \n\n",getpid());
+}
+else if (pid == 0)
+{
+printf("I am a child process \n");
+printf("Child Process ID: %d \n\n",getpid());;
+}
+else 
+{
+printf("Process creation failed...\n");
+exit(0);
+}
+return 0;
+}
+Q 2)
+Write the program to simulate Pre-emptive Shortest Job First (SJF) -scheduling. The
+arrival time and first CPU-burst for different n number of processes should be input 
+to the
+algorithm. Assume the fixed IO waiting time (2 units). The next CPU-burst should be
+generated randomly. The output should give Gantt chart, turnaround time and waiting
+time
+for each process. Also find the average waiting time and turnaround time.
+// PROGRAM 
+#include<stdio.h>
+#include<string.h>
+#include<stdlib.h>
+typedef struct SJF
+{
+char name[20];
+int at,bt,ct,tbt,wt,tat;
+}SJF;
+SJF* s;
+int n, currenttime, cnt;
+float totalwt, totaltat, avgwt, avgtat;
+void accept()
+{
+int i;
+printf("Enter no. of processes: ");
+scanf("%d", &n);
+s = (SJF*)malloc(sizeof(SJF)*n);
+for(i=0; i<n; i++)
+{
+printf("Enter process name: ");
+scanf("%s", s[i].name);
+printf("Enter arrival time: ");
+scanf("%d", &s[i].at);
+printf("Enter burst time: ");
+scanf("%d", &s[i].bt);
+s[i].tbt = s[i].bt;
+}
+}
+void sort()
+{
+SJF t;
+int i, j;
+for(i=0; i<n; i++)
+for(j=i+1; j<n; j++)
+if(s[i].at > s[j].at)
+{
+t = s[i];
+s[i] = s[j];
+s[j] = t;
+}
+}
+int getindex()
+{
+int i, loc=-1, min = 999;
+for(i=0; i<n; i++)
+if(s[i].tbt!= 0 && s[i].at <= currenttime)
+{
+if(s[i].bt<min)
+{
+min = s[i].bt;
+loc = i;
+}
+}
+return loc;
+}
+void schedule()
+{
+int i;
+sort();
+printf("\n ******************************* Gantt Chart 
+***********************\n");
+while(1)
+{
+i = getindex();
+if(i == -1)
+{
+printf("|%d idel",currenttime);
+currenttime = s[cnt].at;
+printf("%d", currenttime);
+}
+else
+{
+printf("| %d %s", currenttime, s[i].name);
+s[i].wt=currenttime-s[i].at;
+s[i].tat=s[i].wt+s[i].bt;
+s[i].tbt=0;
+currenttime+=s[i].bt;
+s[i].ct=currenttime;
+printf("%d",currenttime);
+totalwt+=s[i].wt;
+totaltat+=s[i].tat;
+cnt++;
+if(cnt == n)
+break;
+}
+}
+avgwt = totalwt / n;
+avgtat = totaltat / n;
+}
+void display()
+{
+int i;
+printf("\
+n******************************************************************\
+n");
+printf("\nName \t Arrival Time \t Burst Time \t Waiting Time \t Turn Around 
+Time \n");
+for(i=0;i<n;i++)
+printf("%s\t%d\t\t%d\t\t%d\t\t%d\
+n",s[i].name,s[i].at,s[i].bt,s[i].wt,s[i].tat);
+printf("\n Total Waiting Time %.2f",totalwt);
+printf("\n Total Turn Around Time %.2f",totaltat);
+printf("\n Average Waiting TIme %.2f",avgwt);
+printf("\n Average Turn Around Time %.2f\n",avgtat);
+}
+int main()
+{
+accept();
+schedule();
+display();
+}
+SLIP 19
+Q 1)
+Write a program that demonstrates the use of nice() system call. After a child process
+is started using fork(), assign higher priority to the child using nice() system call.
+// PROGRAM
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/time.h>
+#include <sys/wait.h> // Include the header for wait
+int main() {
+ pid_t child_pid;
+ int parent_nice_value, child_nice_value;
+ parent_nice_value = nice(0);
+ if (parent_nice_value == -1) {
+ perror("Error getting parent's nice value");
+ return 1;
+ }
+ printf("Parent process nice value: %d\n", parent_nice_value);
+ child_pid = fork();
+ if (child_pid == -1) {
+ perror("Fork failed");
+ return 1;
+ } else if (child_pid == 0) {
+ child_nice_value = 10;
+ if (nice(child_nice_value) == -1) {
+ perror("Error setting child's nice value");
+ return 1;
+ }
+ printf("Child process nice value: %d\n", nice(0));
+ } else {
+ int status;
+ wait(&status); // Wait for the child process to complete
+ if (WIFEXITED(status)) {
+ parent_nice_value = nice(0);
+ printf("Parent process nice value after child execution: %d\n", 
+parent_nice_value);
+ }
+ }
+ return 0;
+}
+Q 2)
+Write the program to simulate Non-pre-emptive Priority scheduling. The arrival time
+and first CPU-burst and priority for different n number of processes should be input 
+to the
+algorithm. Assume the fixed IO waiting time (2 units). The next CPU-burst should be
+generated randomly. The output should give Gantt chart, turnaround time and waiting
+time
+for each process. Also find the average waiting time and turnaround time.
+// PROGRAM
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+typedef struct Process {
+ int pid;
+ int arrival_time;
+ int cpu_burst;
+ int priority;
+ int waiting_time;
+ int turnaround_time;
+} Process;
+void sort_by_priority(Process processes[], int n) {
+ for (int i = 0; i < n - 1; i++) {
+ for (int j = 0; j < n - i - 1; j++) {
+ if (processes[j].priority > processes[j + 1].priority) {
+ // Swap processes[j] and processes[j + 1]
+ Process temp = processes[j];
+ processes[j] = processes[j + 1];
+ processes[j + 1] = temp;
+ }
+ }
+ }
+}
+void calculate_waiting_time(Process processes[], int n) {
+ processes[0].waiting_time = 0;
+ for (int i = 1; i < n; i++) {
+ processes[i].waiting_time = processes[i - 1].turnaround_time;
+ }
+}
+void calculate_turnaround_time(Process processes[], int n) {
+ for (int i = 0; i < n; i++) {
+ processes[i].turnaround_time = processes[i].waiting_time + 
+processes[i].cpu_burst;
+ }
+}
+int main() {
+ srand(time(NULL));
+ int n;
+ printf("Enter the number of processes: ");
+ scanf("%d", &n);
+ Process processes[n];
+ for (int i = 0; i < n; i++) {
+ processes[i].pid = i + 1;
+ printf("Process %d: Arrival Time, CPU Burst, Priority: ", i + 1);
+ scanf("%d %d %d", &processes[i].arrival_time, &processes[i].cpu_burst, 
+&processes[i].priority);
+ }
+ sort_by_priority(processes, n);
+ int current_time = 0;
+ printf("\nGantt Chart:\n");
+ for (int i = 0; i < n; i++) {
+ printf("P%d -> ", processes[i].pid);
+ if (processes[i].arrival_time > current_time) {
+ current_time = processes[i].arrival_time;
+ }
+ processes[i].waiting_time = current_time - processes[i].arrival_time;
+ current_time += processes[i].cpu_burst;
+ }
+ printf("End\n");
+ calculate_turnaround_time(processes, n);
+ calculate_waiting_time(processes, n);
+ float total_waiting_time = 0, total_turnaround_time = 0;
+ printf("\nProcess\tArrival Time\tCPU Burst\tPriority\tWaiting Time\tTurnaround 
+Time\n");
+ for (int i = 0; i < n; i++) {
+ printf("P%d\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n", processes[i].pid, 
+processes[i].arrival_time, processes[i].cpu_burst, processes[i].priority, 
+processes[i].waiting_time, processes[i].turnaround_time);
+ total_waiting_time += processes[i].waiting_time;
+ total_turnaround_time += processes[i].turnaround_time;
+ }
+ float average_waiting_time = total_waiting_time / n;
+ float average_turnaround_time = total_turnaround_time / n;
+ printf("\nAverage Waiting Time: %.2f\n", average_waiting_time);
+ printf("Average Turnaround Time: %.2f\n", average_turnaround_time);
+ return 0;
+}
+// OUTPUT
+Enter the number of processes: 3
+Process 1: Arrival Time, CPU Burst, Priority: 0 5 2
+Process 2: Arrival Time, CPU Burst, Priority: 2 3 1
+Process 3: Arrival Time, CPU Burst, Priority: 4 2 3
+Gantt Chart:
+P2 -> P1 -> P3 -> End
+Process Arrival Time CPU Burst Priority Waiting Time
+Turnaround Time
+P2 2 3 1 0 3
+P1 0 5 2 3 10
+P3 4 2 3 10 8
+Average Waiting Time: 4.33
+Average Turnaround Time: 7.00
+SLIP 20
+Q 1)
+Implement the C Program to create a child process using fork(), display parent and
+child process id. Child process will display the message “I am Child Process” and the
+parent
+process should display “I am Parent Process”
+// PROGRAM
+#include<stdio.h>
+#include<stdlib.h>
+#include<unistd.h>
+#include<sys/types.h>
+int main() {
+int pid = fork();
+if(pid > 0)
+{
+printf("I am a parent process\n");
+printf("Parent Process ID: %d \n\n",getpid());
+}
+else if (pid == 0)
+{
+printf("I am a child process \n");
+printf("Child Process ID: %d \n\n",getpid());;
+}
+else 
+{
+printf("Process creation failed...\n");
+exit(0);
+}
+return 0;
+}
+Q 2)
+Write the program to simulate Non-pre-emptive Priority scheduling. The arrival time
+and first CPU-burst and priority for different n number of processes should be input 
+to the
+algorithm. Assume the fixed IO waiting time (2 units). The next CPU-burst should be
+generated randomly. The output should give Gantt chart, turnaround time and waiting
+time
+for each process. Also find the average waiting time and turnaround time.
+// PROGRAM
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+typedef struct Process {
+ int pid;
+ int arrival_time;
+ int cpu_burst;
+ int priority;
+ int waiting_time;
+ int turnaround_time;
+} Process;
+void sort_by_priority(Process processes[], int n) {
+ for (int i = 0; i < n - 1; i++) {
+ for (int j = 0; j < n - i - 1; j++) {
+ if (processes[j].priority > processes[j + 1].priority) {
+ // Swap processes[j] and processes[j + 1]
+ Process temp = processes[j];
+ processes[j] = processes[j + 1];
+ processes[j + 1] = temp;
+ }
+ }
+ }
+}
+void calculate_waiting_time(Process processes[], int n) {
+ processes[0].waiting_time = 0;
+ for (int i = 1; i < n; i++) {
+ processes[i].waiting_time = processes[i - 1].turnaround_time;
+ }
+}
+void calculate_turnaround_time(Process processes[], int n) {
+ for (int i = 0; i < n; i++) {
+ processes[i].turnaround_time = processes[i].waiting_time + 
+processes[i].cpu_burst;
+ }
+}
+int main() {
+ srand(time(NULL));
+ int n;
+ printf("Enter the number of processes: ");
+ scanf("%d", &n);
+ Process processes[n];
+ for (int i = 0; i < n; i++) {
+ processes[i].pid = i + 1;
+ printf("Process %d: Arrival Time, CPU Burst, Priority: ", i + 1);
+ scanf("%d %d %d", &processes[i].arrival_time, &processes[i].cpu_burst, 
+&processes[i].priority);
+ }
+ sort_by_priority(processes, n);
+ int current_time = 0;
+ printf("\nGantt Chart:\n");
+ for (int i = 0; i < n; i++) {
+ printf("P%d -> ", processes[i].pid);
+ if (processes[i].arrival_time > current_time) {
+ current_time = processes[i].arrival_time;
+ }
+ processes[i].waiting_time = current_time - processes[i].arrival_time;
+ current_time += processes[i].cpu_burst;
+ }
+ printf("End\n");
+ calculate_turnaround_time(processes, n);
+ calculate_waiting_time(processes, n);
+ float total_waiting_time = 0, total_turnaround_time = 0;
+ printf("\nProcess\tArrival Time\tCPU Burst\tPriority\tWaiting Time\tTurnaround 
+Time\n");
+ for (int i = 0; i < n; i++) {
+ printf("P%d\t%d\t\t%d\t\t%d\t\t%d\t\t%d\n", processes[i].pid, 
+processes[i].arrival_time, processes[i].cpu_burst, processes[i].priority, 
+processes[i].waiting_time, processes[i].turnaround_time);
+ total_waiting_time += processes[i].waiting_time;
+ total_turnaround_time += processes[i].turnaround_time;
+ }
+ float average_waiting_time = total_waiting_time / n;
+ float average_turnaround_time = total_turnaround_time / n;
+ printf("\nAverage Waiting Time: %.2f\n", average_waiting_time);
+ printf("Average Turnaround Time: %.2f\n", average_turnaround_time);
+ return 0;
+}
